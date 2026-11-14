@@ -28,7 +28,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PACK_DIR = ROOT / "data" / "raw" / "gpu-price-pack-v0.1.1-handover"
 DERIVED = ROOT / "data" / "derived"
 DATA_CUTOFF = date(2026, 11, 6)        # the pack's last day; also the submission origin
-HORIZONS = (1, 3, 7, 30)
+HORIZONS = (1, 3, 7, 30)          # what the forecast file may carry
+SCORED_HORIZONS = (1, 3, 7)        # what Sunday scores (the brief); 30 lands on 6 Dec
 QUANTILES = (0.1, 0.5, 0.9)
 BASELINE_METHODS = ("last_value", "last_value_empirical", "drift", "seasonal_naive")
 
@@ -51,13 +52,15 @@ class Splits:
 
     train: tuple[date, ...] = tuple(weekly("2026-02-04", "2026-09-30"))
     validation: tuple[date, ...] = tuple(weekly("2026-10-01", "2026-10-15"))
-    test: date = date(2026, 10, 24)
+    # Locked test: three origins nothing else sees. Their 1/3/7-day truth runs to 6 Nov.
+    test: tuple[date, ...] = (date(2026, 10, 24), date(2026, 10, 27), date(2026, 10, 30))
     submission: date = DATA_CUTOFF
 
     def check(self) -> None:
         """Origins must be ordered train < validation < test < submission with no overlap."""
         assert max(self.train) < min(self.validation), "train overlaps validation"
-        assert max(self.validation) < self.test < self.submission, "splits out of order"
+        assert max(self.validation) < min(self.test), "validation overlaps test"
+        assert max(self.test) + timedelta(days=max(SCORED_HORIZONS)) <= self.submission, "test truth past the cutoff"
 
 
 class StarterError(RuntimeError):
@@ -146,10 +149,11 @@ def baselines(history: Path, catalog: Path, method: str, out: Path, origins: Seq
 
 def score(forecast: Path, truth: Path, history: Path, catalog: Path, out: Path, per_cell: Path | None = None,
           frozen_cutoff: date | None = None, tier: str = "headline", extra: Sequence[str] = (),
-          pack_dir: Path = PACK_DIR) -> dict:
+          horizons: Sequence[int] = SCORED_HORIZONS, pack_dir: Path = PACK_DIR) -> dict:
     """Run Pacific's scorer and return its JSON report (status ``refused`` on a refusal)."""
     args: list[str | Path] = ["--forecast", forecast, "--truth", truth, "--history", history,
-                              "--catalog", catalog, "--tier", tier, "--out", out]
+                              "--catalog", catalog, "--tier", tier, "--out", out,
+                              "--horizons", ",".join(map(str, horizons))]
     if per_cell is not None:
         args += ["--per-cell", per_cell]
     if frozen_cutoff is not None:
@@ -163,7 +167,8 @@ def score(forecast: Path, truth: Path, history: Path, catalog: Path, out: Path, 
 
 
 def series_at(files: PackFiles, origin: str | date, tier: str | None = "headline",
-              daily_truth_only: bool = False, pack_dir: Path = PACK_DIR) -> list[str]:
+              daily_truth_only: bool = False, min_days: int | None = None,
+              pack_dir: Path = PACK_DIR) -> list[str]:
     """Series in a tier according to the catalog dated ``origin``.
 
     The tier gates (recent value, enough history, enough movement) depend on the
@@ -178,7 +183,19 @@ def series_at(files: PackFiles, origin: str | date, tier: str | None = "headline
         cat = cat[cat["tier"] == tier]
     if daily_truth_only:
         cat = cat[cat["truth_availability"].astype(str).str.startswith("daily")]
+    if min_days is not None:
+        cat = cat[pd.to_numeric(cat["n_days_to_as_of"], errors="coerce") >= min_days]
     return sorted(cat["series_id"])
+
+
+def rental_scope(files: PackFiles, origin: str | date, min_days: int = 30) -> list[str]:
+    """The series our training, validation and test use: posted rental series with daily truth.
+
+    Sunday scores posted rental prices only (AWS spot has no November truth), so
+    every tier counts here as long as the series has ``min_days`` of history at
+    the origin; the headline subset is reported separately.
+    """
+    return series_at(files, origin, tier=None, daily_truth_only=True, min_days=min_days)
 
 
 class Pack:

@@ -116,6 +116,34 @@ The debate lasts at most 2 challenge-and-revision rounds, to keep the cost per d
   debate went, not only the final answer.
 
 ## 2. Recursive self-improvement with RL
+
+> **As built in block 3** (`gpr/rl.py`, `gpr/loop.py`, `gpr/evaluate.py`, `gpr/improve.py`).
+> These are the differences from the design below, made to fit the time left:
+> - **One shared adapter for the Forecasters:** the three lenses share one LoRA adapter, with
+>   the lens in the prompt. The Critic and Market Analyst use the same adapter but are not
+>   trained with RL yet.
+> - **No KL penalty yet:** a small learning rate and the plateau and overfitting stop rules
+>   limit drift instead.
+> - **Distillation deferred:** generations restart weaker members from the best member's
+>   saved state instead.
+> - **Curriculum:** examples are drawn by price move size and the adapter's last reward on
+>   them (hard-date replay). There is no separate horizon schedule yet.
+> - **Truth caps:**
+>   - RL rewards use truth dated on or before 30 Sep, the day before the first validation
+>     origin.
+>   - Validation uses truth dated on or before 24 Oct, the locked test origin.
+> - **Generation 0's incumbent** is Pacific's `last_value_empirical` baseline. A member
+>   replaces the incumbent only when a paired bootstrap gives `p_better >= 0.9`.
+> - **After checking the full brief (14 Nov):**
+>   - Train, validation and test use the posted rental series with daily truth
+>     (`gpr.pack.rental_scope`), not AWS spot.
+>   - Rewards and scores use only the scored horizons (1, 3, 7).
+>   - The locked test is three origins (24, 27, 30 Oct).
+>   - A research notebook (`gpr/research.py`) proposes hypotheses about price drivers, tests
+>     them on the training window, and posts survivors on the boards.
+>   - `scripts/final.py` runs the test with ablations and writes the submission.
+>   - `scripts/long_run.py` builds the 2–3 year view.
+>   - `reproduce.sh` is the one command.
 Improvement happens at two levels, and the loop keeps running until validation performance
 stops rising.
 

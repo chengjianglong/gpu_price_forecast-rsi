@@ -118,7 +118,8 @@ def _changes(values: np.ndarray, h: int) -> np.ndarray:
 
 def build_board(pack: Pack, series_id: str, origin: date,
                 baselines: dict[str, dict[int, tuple[float, float, float]]],
-                events: Iterable[Any] = (), max_events: int = 6, path_days: int = 60) -> Board | None:
+                events: Iterable[Any] = (), max_events: int = 6, path_days: int = 60,
+                findings: Sequence[tuple[str, str]] = ()) -> Board | None:
     """Assemble the evidence pack for one series at one origin; None if there is no history."""
     hist = pack.history(series_id, origin)
     if hist.empty:
@@ -174,6 +175,9 @@ def build_board(pack: Pack, series_id: str, origin: date,
 
     for method, by_h in baselines.items():
         add(f"Baseline {method} (q10, q50, q90): " + "; ".join(f"h={h}: {fmt(*by_h[h])}" for h in sorted(by_h)))
+
+    for fid, text in findings:  # tested hypotheses from the research notebook (training window only)
+        ev.append(Evidence(fid, f"Research finding: {text}"))
 
     cutoff = datetime.combine(origin, time(23, 59, 59), tzinfo=timezone.utc)
     news = [e for e in events if e.published_at <= cutoff]

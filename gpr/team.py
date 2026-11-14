@@ -46,6 +46,8 @@ class TeamConfig:
     debate_min_disagreement: float = 0.0
     use_market_analyst: bool = True
     max_events: int = 6
+    use_findings: bool = True
+    seed: int | None = 20261106       # fixed sampling seeds, so a rerun gives the same forecasts
     rule: WeightRule = field(default_factory=WeightRule)
 
     @classmethod
@@ -72,7 +74,8 @@ class OriginResult:
 
 class Team:
     def __init__(self, config: TeamConfig, llm: LLM, pack: Pack, events: Iterable[Any] = (),
-                 weights: VotingWeights | None = None, cache_dir: Path | None = None):
+                 weights: VotingWeights | None = None, cache_dir: Path | None = None,
+                 findings: Sequence[Any] = ()):
         self.cfg = config
         self.llm = llm
         self.pack = pack
@@ -80,7 +83,9 @@ class Team:
         self.agents = [l.name for l in config.lenses]
         self.weights = weights or VotingWeights(self.agents, config.rule)
         self.cache_dir = cache_dir or pack.files.directory / "baselines"
+        self.findings = list(findings)   # research.Result objects that survived
         self.calls = 0
+        self._phase = 0
 
     # ---- baselines ----------------------------------------------------------
     def baselines_for(self, origin: date) -> dict:
@@ -100,11 +105,15 @@ class Team:
     def _generate(self, chats: list) -> list[str]:
         if not chats:
             return []
+        seed = None if self.cfg.seed is None else self.cfg.seed + 100_000 * self._phase
+        self._phase += 1
         self.calls += len(chats)
-        samples = self.llm.generate(chats, n=1, temperature=self.cfg.temperature, max_tokens=self.cfg.max_tokens)
+        samples = self.llm.generate(chats, n=1, temperature=self.cfg.temperature, max_tokens=self.cfg.max_tokens,
+                                    seed=seed)
         return [s[0].text for s in samples]
 
     def run(self, origin: date, series_ids: Sequence[str]) -> OriginResult:
+        self._phase = origin.toordinal() % 1000 * 10   # phase counter: distinct, repeatable seeds per call batch
         table = self.baselines_for(origin)
         boards: list[Board] = []
         for sid in series_ids:
@@ -112,7 +121,12 @@ class Team:
             if not by_method or FALLBACK_METHOD not in by_method:
                 continue
             shown = {m: by_method[m] for m in self.cfg.baseline_methods if m in by_method}
-            board = build_board(self.pack, sid, origin, shown, self.events, self.cfg.max_events)
+            found = ()
+            if self.cfg.use_findings and self.findings:
+                from .research import findings_for
+
+                found = findings_for(self.findings, str(self.pack.info(sid).get("instrument_class")))
+            board = build_board(self.pack, sid, origin, shown, self.events, self.cfg.max_events, findings=found)
             if board is not None:
                 board.baselines[FALLBACK_METHOD] = by_method[FALLBACK_METHOD]
                 boards.append(board)

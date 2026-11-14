@@ -14,9 +14,39 @@ Self-Improvement) of the iterate.inc AI research hackathon, Nov 14–15, 2026.
 >   different lenses, a Critic, a Market Analyst), the debate, the weighted vote, and a script
 >   that runs one origin and scores it with Pacific's scorer. It runs offline with a fake LLM
 >   and on Tinker (`Qwen/Qwen3.5-9B`).
-> - Not written yet: RL, the Improver and the generation loop (block 3).
+> - Block 3 written:
+>   - GRPO-style RL on Tinker for the Forecasters (`gpr/rl.py`);
+>   - rewards with time-safe truth caps (`gpr/rewards.py`);
+>   - validation with voting-weight updates and a paired-bootstrap acceptance test
+>     (`gpr/evaluate.py`);
+>   - the Improver (`gpr/improve.py`);
+>   - the generation loop with exploit and explore and stopping rules (`gpr/loop.py`,
+>     `scripts/rsi_loop.py`).
+>
+>   See [docs/PLAN.md](docs/PLAN.md) section 2 for where it differs from the original design.
+> - Gaps against the full brief closed:
+>   - training, validation and test use the posted rental series and the scored horizons;
+>   - a three-origin locked test;
+>   - a research notebook of tested hypotheses (`gpr/research.py`);
+>   - fixed sampling seeds and `reproduce.sh`;
+>   - the final evaluation and submission (`scripts/final.py`);
+>   - the 2–3 year model (`scripts/long_run.py`);
+>   - the report (`scripts/report.py`).
+> - Not done yet: the overnight loop run and the final numbers (FINDINGS sections 4 and 5).
 >
 > The full plan is in [docs/PLAN.md](docs/PLAN.md).
+
+## Deliverables (Track 2 brief, section 7)
+| Required | Where |
+|---|---|
+| Forecasts in the starter-kit format, origin 2026-11-06, horizons 1, 3, 7 | `submission/forecast_2026-11-06.csv` (written by `scripts/final.py`, checked in Pacific's frozen-cutoff mode) |
+| One command that reproduces them from the pack | `bash reproduce.sh` (`MODE=base` without a checkpoint, `MODE=full` to rerun the loop) |
+| Findings: question, method, evaluation, results with uncertainty, what the system learned, the 2–3 year view | [FINDINGS.md](FINDINGS.md), with tables in `results/report.md` and `results/long_run.md` |
+| Attribution | [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md), copied unchanged from the pack |
+
+**Direction:** A (self-improving forecasts), with B's memory: a research notebook of tested
+hypotheses and a shared evidence board. External data: none by default. Exa news is optional
+and dated before each origin.
 
 ## What it forecasts
 The task comes from Pacific's GPU price data pack (`gpu-price-pack-v0.1.1-handover`, data
@@ -28,10 +58,10 @@ cutoff 6 Nov 2026) and its starter kit.
   - **At 24 Oct:** 97 series, 80 of them AWS spot.
   - **At the 6 Nov submission origin:** 37 series, all rental daily statistics with daily truth.
     The AWS archive ends on 31 Oct, so AWS spot falls out of the headline tier.
-- **Horizons:** 1, 3, 7 and 30 days from the origin.
+- **Horizons:** 1, 3 and 7 days from the origin are scored on Sunday; the format also allows 30.
 - **Output:** `q10, q50, q90` per series and horizon, in the starter kit's forecast CSV layout.
-- **Submission:** forecasts from the 6 Nov 2026 origin, which Pacific scores on the withheld
-  7–13 Nov truth.
+- **Submission:** forecasts from the 6 Nov 2026 origin for the 37 headline series, which Pacific
+  scores on Sunday 15 Nov against posted prices for 7–13 Nov (withheld from the pack).
 - **Score:** Pacific's `scorer.py` measures pinball loss and reports skill against the last-value
   baseline.
 
@@ -155,6 +185,17 @@ against plausible bounds. `PriceStore.as_of(t)` only returns what was knowable a
 It writes `outputs/<run>/forecast_<origin>.csv` in Pacific's forecast format, plus the debate
 transcript and the scorer's report. The 24 Oct and 6 Nov origins are checked in frozen-cutoff
 mode. Series are chosen from the catalog dated at the origin, as the scorer requires.
+
+## Run the self-improvement loop
+```bash
+.venv/bin/python scripts/rsi_loop.py --generations 1 --steps 2 --population 2 --batch-size 8   # short check
+.venv/bin/python scripts/rsi_loop.py --deadline 2026-11-15T09:00                               # overnight
+```
+It writes `outputs/rsi/<run>/` with:
+- `archive.jsonl`: every member and generation;
+- `best.json`: the accepted incumbent and its Tinker checkpoint;
+- `summary.json`;
+- each member's validation forecasts, debate transcripts, voting weights and scores.
 
 ## Open decisions
 - **Exa:** confirm it meets the pack's external-data rule; how far back its page snapshots go is

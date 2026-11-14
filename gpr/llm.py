@@ -35,7 +35,8 @@ class LLM:
     name = "llm"
 
     def generate(self, chats: Sequence[Messages], n: int = 1, temperature: float = 0.7,
-                 max_tokens: int = 512) -> list[list[Sample]]:
+                 max_tokens: int = 512, seed: int | None = None) -> list[list[Sample]]:
+        """``seed`` makes sampling repeatable: request i uses ``seed + i``."""
         raise NotImplementedError
 
 
@@ -48,7 +49,7 @@ class FakeLLM(LLM):
         self.respond = respond
         self.calls: list[Messages] = []
 
-    def generate(self, chats, n=1, temperature=0.7, max_tokens=512):
+    def generate(self, chats, n=1, temperature=0.7, max_tokens=512, seed=None):
         out = []
         for chat in chats:
             self.calls.append(chat)
@@ -72,17 +73,21 @@ class TinkerLLM(LLM):
     name = "tinker"
 
     def __init__(self, base_model: str, model_path: str | None = None, service_client: Any | None = None,
-                 chat_template_kwargs: dict[str, Any] | None = None):
+                 chat_template_kwargs: dict[str, Any] | None = None, sampling_client: Any | None = None):
         import tinker
 
         load_env()
         self.tinker = tinker
         self.base_model = base_model
         self.model_path = model_path
-        self.service = service_client or tinker.ServiceClient()
-        future = self.service.create_sampling_client(model_path=model_path,
-                                                     base_model=None if model_path else base_model)
-        self.client = future.result() if hasattr(future, "result") else future
+        if sampling_client is not None:  # e.g. from a training client's latest weights
+            self.service = service_client
+            self.client = sampling_client
+        else:
+            self.service = service_client or tinker.ServiceClient()
+            future = self.service.create_sampling_client(model_path=model_path,
+                                                         base_model=None if model_path else base_model)
+            self.client = future.result() if hasattr(future, "result") else future
         self.tokenizer = self.client.get_tokenizer()
         # Qwen3-style templates accept enable_thinking; short JSON answers don't need thinking.
         self.chat_template_kwargs = {"enable_thinking": False, **(chat_template_kwargs or {})}
@@ -95,12 +100,14 @@ class TinkerLLM(LLM):
             text = self.tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
         return self.tokenizer.encode(text, add_special_tokens=False)
 
-    def generate(self, chats, n=1, temperature=0.7, max_tokens=512):
+    def generate(self, chats, n=1, temperature=0.7, max_tokens=512, seed=None):
         types = self.tinker.types
-        params = types.SamplingParams(max_tokens=max_tokens, temperature=temperature)
         prompts = [self.encode_chat(chat) for chat in chats]
-        futures = [self.client.sample(prompt=types.ModelInput.from_ints(p), num_samples=n, sampling_params=params)
-                   for p in prompts]
+        futures = [self.client.sample(prompt=types.ModelInput.from_ints(p), num_samples=n,
+                                      sampling_params=types.SamplingParams(
+                                          max_tokens=max_tokens, temperature=temperature,
+                                          seed=None if seed is None else seed + i))
+                   for i, p in enumerate(prompts)]
         out = []
         for prompt, future in zip(prompts, futures):
             response = future.result()

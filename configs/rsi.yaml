@@ -1,0 +1,21 @@
+# Settings for scripts/rsi_loop.py. The team itself comes from configs/team_v0.yaml.
+rl:
+  base_model: Qwen/Qwen3.5-9B
+  rank: 16
+  learning_rate: 1.0e-5      # per member, overridden by loop.learning_rates
+  batch_size: 16             # prompts per RL step
+  group_size: 4              # answers per prompt (GRPO group)
+  temperature: 0.9
+  max_tokens: 600
+loop:
+  population: 3
+  steps_per_generation: 6
+  max_generations: 20
+  plateau_generations: 3
+  overfit_generations: 2
+  accept_p: 0.9
+  max_series_per_origin: 40
+  learning_rates: [5.0e-6, 1.0e-5, 2.0e-5]
+  lr_bounds: [1.0e-6, 1.0e-4]
+  use_improver: true
+  seed: 0

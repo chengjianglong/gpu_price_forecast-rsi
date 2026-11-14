@@ -1,0 +1,301 @@
+{
+ "levels": {
+  "GIX_A100": {
+   "value": 1.981899042944896,
+   "date": "2026-11-03"
+  },
+  "GIX_H100": {
+   "value": 3.334514468235294,
+   "date": "2026-11-03"
+  },
+  "GIX_H200": {
+   "value": 4.28208925,
+   "date": "2026-11-03"
+  },
+  "GIX_B200": {
+   "value": 7.322173577440219,
+   "date": "2026-11-03"
+  },
+  "GetDeploying_A100_on_demand": {
+   "value": 1.79,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_A100_reserved_12m": {
+   "value": 1.6973,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_A100_reserved_36m": {
+   "value": 1.3631,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_A100_spot": {
+   "value": 1.3591,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H100_on_demand": {
+   "value": 3.85,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H100_reserved_12m": {
+   "value": 3.21,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H100_reserved_36m": {
+   "value": 2.9722,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H100_spot": {
+   "value": 2.39,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H200_on_demand": {
+   "value": 4.81,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H200_reserved_12m": {
+   "value": 3.5583,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H200_reserved_36m": {
+   "value": 2.97,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_H200_spot": {
+   "value": 3.5714,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_B200_on_demand": {
+   "value": 7.83,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_B200_reserved_12m": {
+   "value": 8.6781,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_B200_reserved_36m": {
+   "value": 7.1624,
+   "date": "2026-10-26"
+  },
+  "GetDeploying_B200_spot": {
+   "value": 4.775,
+   "date": "2026-10-26"
+  }
+ },
+ "trends": {
+  "GetDeploying_A100_on_demand": {
+   "annual_change": 0.14949310142735728,
+   "from": "2025-11-03",
+   "to": "2026-10-26",
+   "n": 52
+  },
+  "GetDeploying_H100_on_demand": {
+   "annual_change": 0.26198365527104905,
+   "from": "2025-11-03",
+   "to": "2026-10-26",
+   "n": 52
+  },
+  "GetDeploying_H200_on_demand": {
+   "annual_change": 0.3659552567308537,
+   "from": "2025-11-03",
+   "to": "2026-10-26",
+   "n": 52
+  },
+  "GetDeploying_B200_on_demand": {
+   "annual_change": 0.45051221640864436,
+   "from": "2025-11-03",
+   "to": "2026-10-26",
+   "n": 52
+  },
+  "AWS_spot_A100_p4d.24xlarge": {
+   "annual_change_segment_1": -0.04446175838004651,
+   "segment_1": [
+    "2022-06-01",
+    "2026-02-28"
+   ],
+   "first_value": 1.9763875,
+   "last_value_before_hole": 1.5391875,
+   "last_value": 2.119575,
+   "last_date": "2026-10-31"
+  },
+  "AWS_spot_H100_p5.48xlarge": {
+   "annual_change_segment_1": -0.32645105174255307,
+   "segment_1": [
+    "2024-12-19",
+    "2026-02-28"
+   ],
+   "first_value": 1.5977,
+   "last_value_before_hole": 2.1101125,
+   "last_value": 3.8610875,
+   "last_date": "2026-10-31"
+  }
+ },
+ "capability_units": {
+  "H100": 1.0,
+  "H200": 1.1019213758535173,
+  "B200": 3.2109053746829126,
+  "B300": 3.556821236602841,
+  "GB200": 3.2796213145020854,
+  "GB300": 4.127854224364384,
+  "A100": 0.4065040650406504
+ },
+ "launch": {
+  "H100": {
+   "release_price_usd": 33600.0,
+   "tdp_w": 700.0,
+   "release_date": "2022-09-20",
+   "accelerator": "NVIDIA H100 SXM5 80GB"
+  },
+  "A100": {
+   "release_price_usd": 15000.0,
+   "tdp_w": 400.0,
+   "release_date": "2020-05-14",
+   "accelerator": "NVIDIA A100 SXM4 40 GB"
+  },
+  "H200": {
+   "release_price_usd": 30000.0,
+   "tdp_w": 700.0,
+   "release_date": "2024-11-18",
+   "accelerator": "NVIDIA H200 SXM"
+  }
+ },
+ "scenarios": {
+  "H100": {
+   "rent_now": 3.334514468235294,
+   "annual_change": {
+    "low": -0.35,
+    "base": -0.1652748753635952,
+    "high": -0.04
+   },
+   "implied_by_36m_vs_on_demand": -0.1652748753635952,
+   "reserved_36m_over_on_demand": 0.772,
+   "capability_parity_rent_now": 2.2804077738240127,
+   "parity_gap": 0.46224482590832916,
+   "floor_usd_per_gpu_hour": {
+    "low": 0.1256,
+    "base": 0.22285,
+    "high": 0.33899999999999997
+   },
+   "rent": {
+    "2y": {
+     "low": 1.408832362829412,
+     "base": 2.3233764203451077,
+     "high": 3.073088533925647
+    },
+    "3y": {
+     "low": 0.9157410358391177,
+     "base": 1.9393806720498543,
+     "high": 2.9501649925686206
+    }
+   },
+   "resale_usd": {
+    "2y": {
+     "low": 4640.144825565941,
+     "base": 26368.60286872414,
+     "high": 56747.599821847485,
+     "remaining_life_years": 3.150000000000091,
+     "share_of_launch_price": {
+      "low": 0.1380995483799387,
+      "base": 0.7847798472834566,
+      "high": 1.6889166613645086
+     }
+    },
+    "3y": {
+     "low": 1327.8371148541,
+     "base": 16726.992731376773,
+     "high": 39577.246142210526,
+     "remaining_life_years": 2.150000000000091,
+     "share_of_launch_price": {
+      "low": 0.03951896175161012,
+      "base": 0.4978271646243087,
+      "high": 1.1778942304229323
+     }
+    }
+   }
+  },
+  "A100": {
+   "rent_now": 1.981899042944896,
+   "annual_change": {
+    "low": -0.35,
+    "base": -0.17362229333885748,
+    "high": -0.04
+   },
+   "implied_by_36m_vs_on_demand": -0.17362229333885748,
+   "reserved_36m_over_on_demand": 0.7615083798882681,
+   "capability_parity_rent_now": 0.9269950300097614,
+   "parity_gap": 1.1379823826283366,
+   "floor_usd_per_gpu_hour": {
+    "low": 0.0932,
+    "base": 0.17020000000000002,
+    "high": 0.258
+   },
+   "rent": {
+    "2y": {
+     "low": 0.8373523456442186,
+     "base": 1.3534390824954146,
+     "high": 1.826518157978016
+    },
+    "3y": {
+     "low": 0.5442790246687421,
+     "base": 1.1184518850981218,
+     "high": 1.7534574316588951
+    }
+   },
+   "resale_usd": {
+    "2y": {
+     "low": 1822.457907287945,
+     "base": 9371.952056660506,
+     "high": 19200.910587318132,
+     "remaining_life_years": 1.650000000000091,
+     "share_of_launch_price": {
+      "low": 0.12149719381919634,
+      "base": 0.624796803777367,
+      "high": 1.2800607058212088
+     }
+    },
+    "3y": {
+     "low": 223.135001578925,
+     "base": 3352.9448993555175,
+     "high": 7713.215804741539,
+     "remaining_life_years": 0.650000000000091,
+     "share_of_launch_price": {
+      "low": 0.014875666771928333,
+      "base": 0.2235296599570345,
+      "high": 0.5142143869827692
+     }
+    }
+   }
+  }
+ },
+ "assumptions": {
+  "electricity_usd_per_kwh": [
+   0.06,
+   0.09,
+   0.12
+  ],
+  "pue": [
+   1.2,
+   1.3,
+   1.5
+  ],
+  "host_overhead": 1.5,
+  "ops_usd_per_gpu_hour": [
+   0.05,
+   0.1,
+   0.15
+  ],
+  "utilisation": [
+   0.85,
+   0.7,
+   0.55
+  ],
+  "discount_rate": [
+   0.1,
+   0.13,
+   0.18
+  ],
+  "end_of_life": {
+   "A100": 2030.5,
+   "H100": 2032.0
+  }
+ }
+}
