@@ -9,9 +9,9 @@ rl:
   max_tokens: 600
 loop:
   population: 3
-  steps_per_generation: 6
-  max_generations: 20
-  plateau_generations: 3
+  steps_per_generation: 8
+  max_generations: 30
+  plateau_generations: 6
   overfit_generations: 2
   accept_p: 0.9
   max_series_per_origin: 40
