@@ -1,0 +1,28 @@
+# The starting team. The outer loop (block 3) edits copies of this file.
+name: team_v0
+base_model: Qwen/Qwen3.5-9B
+temperature: 0.7
+max_tokens: 600
+baseline_methods: [last_value_empirical, drift]
+debate_rounds: 1
+debate_min_disagreement: 0.0   # debate every series; raise to debate only where Forecasters disagree
+use_market_analyst: true
+max_events: 6
+rule:
+  eta: 2.0
+  decay: 0.05
+  w_min: 0.05
+  widen: 0.5
+lenses:
+  - name: momentum
+    view: >-
+      You are the momentum forecaster: you believe recent trends in this price tend to continue,
+      and you look for the direction and pace of the latest moves.
+  - name: reversion
+    view: >-
+      You are the mean-reversion forecaster: you believe prices drift back towards their usual
+      level after a move, and you look for moves that overshot.
+  - name: supply_demand
+    view: >-
+      You are the supply-and-demand forecaster: you reason from GPU generations, provider counts,
+      capacity and news events about why this price should move or hold.

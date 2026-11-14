@@ -10,7 +10,11 @@ Self-Improvement) of the iterate.inc AI research hackathon, Nov 14–15, 2026.
 > - Done: Pacific's data pack is downloaded and verified, and its starter demo reproduces their
 >   baselines locally. The Exa event collector and the time-sliced store are written and tested
 >   offline; they haven't been run against the live Exa API yet.
-> - Not written yet: the agents, debate, RL and loop.
+> - Block 2 done: the pack reader, the shared board, the agents (three Forecasters with
+>   different lenses, a Critic, a Market Analyst), the debate, the weighted vote, and a script
+>   that runs one origin and scores it with Pacific's scorer. It runs offline with a fake LLM
+>   and on Tinker (`Qwen/Qwen3.5-9B`).
+> - Not written yet: RL, the Improver and the generation loop (block 3).
 >
 > The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
@@ -19,10 +23,11 @@ The task comes from Pacific's GPU price data pack (`gpu-price-pack-v0.1.1-handov
 cutoff 6 Nov 2026) and its starter kit.
 
 - **Targets:** the pack's daily series (`series_id` in `series_catalog.csv`), for example AWS spot
-  per availability zone, or a collector's median posted rate card for H100 SXM 80GB. There are 97
-  headline series:
-  - 80 AWS spot series, which have no truth for 7–13 Nov.
-  - 17 rental daily statistics, which do.
+  per availability zone, or a collector's median posted rate card for H100 SXM 80GB. The
+  headline set depends on the catalog date:
+  - **At 24 Oct:** 97 series, 80 of them AWS spot.
+  - **At the 6 Nov submission origin:** 37 series, all rental daily statistics with daily truth.
+    The AWS archive ends on 31 Oct, so AWS spot falls out of the headline tier.
 - **Horizons:** 1, 3, 7 and 30 days from the origin.
 - **Output:** `q10, q50, q90` per series and horizon, in the starter kit's forecast CSV layout.
 - **Submission:** forecasts from the 6 Nov 2026 origin, which Pacific scores on the withheld
@@ -142,10 +147,21 @@ against plausible bounds. `PriceStore.as_of(t)` only returns what was knowable a
 .venv/bin/python scripts/collect.py summary
 ```
 
+## Run one origin
+```bash
+.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm fake              # offline dry run
+.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm tinker --limit 3  # needs TINKER_API_KEY in .env
+```
+It writes `outputs/<run>/forecast_<origin>.csv` in Pacific's forecast format, plus the debate
+transcript and the scorer's report. The 24 Oct and 6 Nov origins are checked in frozen-cutoff
+mode. Series are chosen from the catalog dated at the origin, as the scorer requires.
+
 ## Open decisions
 - **Exa:** confirm it meets the pack's external-data rule; how far back its page snapshots go is
   unknown until the first run.
-- **Submitted series:** all 97 headline series, or only those with truth for 7–13 Nov.
+- **Model knowledge:** several Tinker models look like 2026 releases, so their training data may
+  overlap the pack's 2026 prices. Check each model's cutoff, and test recall without the data,
+  before trusting backtest scores.
 - **Track 2 brief:** the submission steps and which skill aggregate ranks teams are in the full
   brief, behind the participant login.
 - **Base model:** a small Qwen3 or Llama model on Tinker, chosen after checking the model list and prices.

@@ -247,7 +247,15 @@ many rental series barely move, so the curriculum over-weights the ones that do.
 | Locked test | 24 Oct 2026, frozen mode, truth up to 6 Nov | Scored once at the end, like Pacific's demo |
 | Submission | 6 Nov 2026, frozen mode | Pacific scores it on the withheld 7–13 Nov truth |
 
-The base models' training data ends long before 2026, so they can't remember these prices.
+**Headline set by origin.** The catalog's tier gates depend on the date. At 24 Oct the headline
+set is 97 series (80 AWS spot). At 6 Nov it is 37 series, all rental daily statistics with daily
+truth, because the AWS archive ends on 31 Oct. Every origin chooses its series from the catalog
+dated at that origin (`gpr.pack.series_at`), as Pacific's scorer does.
+
+**Model knowledge.** Several Tinker models look like 2026 releases, so their training data may
+overlap the pack's 2026 prices. Before trusting backtest scores, check each candidate model's
+training cutoff and test whether it can recall prices without the evidence. If it can, keep
+validation and test origins after the cutoff.
 
 **Rules from the pack (DATA.md sections 3 and 9):**
 - Never chain different instrument classes into one series.
@@ -309,7 +317,7 @@ The base models' training data ends long before 2026, so they can't remember the
 | When | Step | Done when |
 |---|---|---|
 | Nov 14, block 1 | **Done:** Pacific's pack downloaded and verified; starter demo reproduces their baselines; Exa event collector and `PriceStore` written and tested offline | Baseline scores at the 24 Oct cutoff and on the 15-origin backtest |
-| Nov 14, block 2 (~3 h) | Pack adapter and splits; agents, shared board and debate, on the fake LLM and then on Tinker | One origin runs end to end on Tinker and writes a valid forecast file |
+| Nov 14, block 2 | **Done:** pack adapter and splits; agents, shared board and debate, on the fake LLM and then on Tinker | One origin runs end to end on Tinker and writes a valid forecast file |
 | Nov 14, block 3 (~3 h) | Rewards, one RL step per role on Tinker, Improver, voting weights, selection and archive | One generation runs end to end: rewards rise on the training origins |
 | Overnight | Run the full loop (population of K = 4) until a stopping rule fires | An archive of generations and a validation curve |
 | Nov 15, morning | Comparison runs (the six rows in section 4), resumed from the overnight checkpoints | The comparison table |
@@ -333,8 +341,6 @@ The base models' training data ends long before 2026, so they can't remember the
 - **Track 2 brief:** the full brief (submission steps and which skill aggregate ranks teams) is
   linked from the event's Resources page, which needs a participant login. Adjust this plan once
   it is known.
-- **Which series to submit:** all 97 headline series, or the headline series that have truth for
-  7–13 Nov (the catalog's `truth_availability` column).
+- **Base model:** `Qwen/Qwen3.5-9B` runs the block-2 team; compare it with a larger model, and
+  check its training cutoff first.
 - **Exa:** confirm with the organisers that it meets the external-data rule.
-- **Base model on Tinker:** a small Qwen3 or Llama model for the role agents and fine-tuning,
-  chosen after checking Tinker's model list and prices.
