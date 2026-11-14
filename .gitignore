@@ -7,7 +7,7 @@ __pycache__/
 # checkpoints, data and run artefacts
 checkpoints/
 outputs/
-data/
+/data/
 
 .env
 api_keys.sh
