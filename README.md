@@ -1,5 +1,8 @@
 # RSI4GPF: Recursive Self-Improvement with Multi-Agent Reinforcement Learning for GPU Price Forecasting
 
+**Authors:** [Chengjiang Long](https://www.linkedin.com/in/chengjiang-long-a7702478/) ·
+[Hill Ma](https://www.linkedin.com/in/hillma/)
+
 **An AI scientist that forecasts GPU rental prices and keeps improving itself.** A team of LLM
 agents shares one board of evidence, debates from different perspectives and votes. A research
 agent proposes and tests hypotheses about what moves prices. RL on Tinker trains the agents on
@@ -73,15 +76,19 @@ flowchart LR
 ## How it improves itself
 
 ```mermaid
-flowchart TB
-    H["1 · Research: propose a hypothesis → test it on data up to 30 Sep → keep it if p < 0.05"] --> T
-    T["2 · RL on Tinker: 8 GRPO steps per member, reward = skill vs last value at h = 1/3/7"] --> E
-    E["3 · Validate: the full team at 1, 8 and 15 Oct; voting weights update after each date"] --> A
-    A{"4 · Paired bootstrap:<br/>P(better than incumbent) ≥ 0.9?"} -- yes --> I["New incumbent<br/>(checkpoint saved)"]
+flowchart LR
+    H["<b>1 · Research</b><br/>propose a hypothesis<br/>test it on data to 30 Sep<br/>keep it if p < 0.05"]
+    T["<b>2 · RL on Tinker</b><br/>8 GRPO steps per member<br/>reward = skill vs last value<br/>at h = 1, 3, 7"]
+    E["<b>3 · Validate</b><br/>full team on 1, 8, 15 Oct<br/>voting weights update<br/>after each date"]
+    A{"<b>4 · Accept?</b><br/>paired bootstrap<br/>P(better) ≥ 0.9"}
+    I["<b>New incumbent</b><br/>checkpoint saved"]
+    X["<b>5 · Exploit and explore</b><br/>weaker members copy the best<br/>perturb LR, temperature, voting rule<br/>the Improver edits one"]
+    Z["<b>Locked test</b><br/>24, 27, 30 Oct<br/>then the 6 Nov submission"]
+    H --> T --> E --> A
+    A -- yes --> I --> X
     A -- no --> X
-    I --> X["5 · Exploit and explore: weaker members copy the best,<br/>perturb learning rate, temperature and voting rule; the Improver edits one"]
-    X --> H
-    X -. "stop on a plateau (6 generations), overfitting or the deadline" .-> Z["Locked test 24/27/30 Oct → submission 6 Nov"]
+    X -- next generation --> H
+    X -. "stop: plateau, overfitting or deadline" .-> Z
 ```
 
 | Level | What changes | Kept only if |
