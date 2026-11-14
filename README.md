@@ -6,14 +6,36 @@ perspectives, and vote with weights that update as results come in. RL on Tinker
 agents' weights from the scores their own forecasts earn. Built for Track 2 (Recursive
 Self-Improvement) of the iterate.inc AI research hackathon, Nov 14–15, 2026.
 
-> **Status:** design stage. No forecasting code is written yet. The full plan is in
-> [docs/PLAN.md](docs/PLAN.md).
+> **Status:**
+> - Done: Pacific's data pack is downloaded and verified, and its starter demo reproduces their
+>   baselines locally. The Exa event collector and the time-sliced store are written and tested
+>   offline; they haven't been run against the live Exa API yet.
+> - Not written yet: the agents, debate, RL and loop.
+>
+> The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## What it forecasts
-- **Target:** the daily median price per GPU-hour for H100, H200, B200 and A100, for both
-  on-demand and spot rentals.
-- **Horizons:** 1, 7 and 30 days ahead.
-- **Output:** a range (10th, 50th and 90th percentiles), scored with pinball loss and range coverage.
+The task comes from Pacific's GPU price data pack (`gpu-price-pack-v0.1.1-handover`, data
+cutoff 6 Nov 2026) and its starter kit.
+
+- **Targets:** the pack's daily series (`series_id` in `series_catalog.csv`), for example AWS spot
+  per availability zone, or a collector's median posted rate card for H100 SXM 80GB. There are 97
+  headline series:
+  - 80 AWS spot series, which have no truth for 7–13 Nov.
+  - 17 rental daily statistics, which do.
+- **Horizons:** 1, 3, 7 and 30 days from the origin.
+- **Output:** `q10, q50, q90` per series and horizon, in the starter kit's forecast CSV layout.
+- **Submission:** forecasts from the 6 Nov 2026 origin, which Pacific scores on the withheld
+  7–13 Nov truth.
+- **Score:** Pacific's `scorer.py` measures pinball loss and reports skill against the last-value
+  baseline.
+
+**Baselines to beat**, reproduced locally with the starter demo (pooled skill):
+
+| Baseline | 24 Oct cutoff | 15-origin backtest |
+|---|---|---|
+| `last_value_empirical` | +0.21 | +0.18 |
+| `drift` | +0.20 | +0.17 |
 
 ## The agents
 | Role | Job | LLM or code |
@@ -53,8 +75,9 @@ when the time or compute budget runs out.
 
 ## Rigour
 - Agents see only data available on the forecast date, and tests fail on any leak.
-- A test window stays locked until the end and, where possible, starts after the base model's
-  training cutoff.
+- A locked test at the 24 Oct origin is scored once at the end, in Pacific's frozen-cutoff mode.
+- The 6 Nov submission is checked with Pacific's scorer in frozen-cutoff mode before it is sent.
+- All four of the scorer's skill aggregates are reported, plus range coverage.
 - Comparisons add one piece at a time:
   - the statistical baseline;
   - a single LLM forecaster;
@@ -67,11 +90,62 @@ when the time or compute budget runs out.
 ## Setup
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install tinker
-cp .env.example .env   # add TINKER_API_KEY (file to come with the scaffold)
+.venv/bin/pip install -e ".[dev]"
+cp .env.example .env   # add EXA_API_KEY (from the Exa dashboard) and TINKER_API_KEY
+.venv/bin/python -m pytest -q
+```
+
+## Data
+### Pacific's data pack (main source)
+Get it from the Track 2 Google Drive folder. Then check and unpack it into `data/raw/`, which is
+git-ignored:
+
+```bash
+shasum -a 256 data/raw/gpu-price-pack-v0.1.1-handover_pack-only.zip   # compare with ZIP.sha256
+cd data/raw && unzip -q gpu-price-pack-v0.1.1-handover_pack-only.zip
+cd gpu-price-pack-v0.1.1-handover && shasum -a 256 -c MANIFEST.sha256 | grep -v ': OK$'   # no output = intact
+```
+
+Reproduce Pacific's baselines with the starter demo (about 20 s, offline):
+
+```bash
+.venv/bin/pip install duckdb pandas numpy pyarrow
+PYTHON="$PWD/.venv/bin/python" bash data/raw/gpu-price-pack-v0.1.1-handover/starter/run_demo.sh \
+    "$PWD/data/raw/gpu-price-pack-v0.1.1-handover" "$PWD/data/derived/demo" 2026-10-24
+```
+
+Rules from the pack's `DATA.md`:
+- Every price in it is a posted price, not a price paid.
+- Instrument classes are never chained into one series.
+- Keep `ATTRIBUTION.md` with any derived work.
+- Only add external data that is public, free to every team and dated before the origin.
+
+### Exa (news events, supplementary)
+`gpr/data/` also collects from [Exa](https://exa.ai). Its main use is news events, dated before
+each origin, for the shared board. Whether Exa meets the pack's external-data rule still needs
+confirming with the organisers. It can collect:
+- **History:** stored snapshots of provider pricing pages at past dates (`snapshot_as_of`),
+  timestamped by the snapshot's own crawl time.
+- **Live:** the same pages fetched fresh, run on a schedule during the event.
+- **Articles:** prices quoted in news and blogs, used as evidence rather than as the target.
+- **Events:** news found with published-date filters, which goes into the shared board.
+
+Prices are extracted with Exa's structured summaries, converted to USD per GPU-hour, and checked
+against plausible bounds. `PriceStore.as_of(t)` only returns what was knowable at `t`.
+
+```bash
+.venv/bin/python scripts/collect.py discover                     # find pricing pages
+.venv/bin/python scripts/collect.py history --start 2025-05-01 --every-days 7 --dry-run
+.venv/bin/python scripts/collect.py history --start 2025-05-01 --every-days 7
+.venv/bin/python scripts/collect.py events --start 2025-05-01 --every-days 30
+.venv/bin/python scripts/collect.py live                         # repeat during the event
+.venv/bin/python scripts/collect.py summary
 ```
 
 ## Open decisions
-- **Price data:** collect from public GPU marketplaces plus available history, or use a provided dataset.
-- **Track 2 brief:** Pacific's exact question and judging rules are behind the participant login.
+- **Exa:** confirm it meets the pack's external-data rule; how far back its page snapshots go is
+  unknown until the first run.
+- **Submitted series:** all 97 headline series, or only those with truth for 7–13 Nov.
+- **Track 2 brief:** the submission steps and which skill aggregate ranks teams are in the full
+  brief, behind the participant login.
 - **Base model:** a small Qwen3 or Llama model on Tinker, chosen after checking the model list and prices.

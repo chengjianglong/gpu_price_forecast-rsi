@@ -1,0 +1,23 @@
+# Pricing pages to snapshot. `seed_urls` are starting points and have not been
+# checked yet; `python scripts/collect.py discover` adds pages found by Exa search
+# to `discovered_urls`. Remove any page that turns out not to list GPU prices.
+seed_urls:
+  - https://lambda.ai/pricing
+  - https://www.runpod.io/pricing
+  - https://vast.ai/pricing
+  - https://www.coreweave.com/pricing
+discovered_urls: []
+
+# Queries for prices quoted in articles (evidence, not the forecast target).
+article_queries:
+  - H100 rental price per hour
+  - H200 cloud price per GPU hour
+  - B200 cloud rental price
+  - A100 price per hour cloud
+
+# Queries for events that go into the shared board's evidence pack.
+event_queries:
+  - GPU cloud price cut H100
+  - NVIDIA B200 shipments supply data center
+  - H100 rental prices falling
+  - GPU shortage cloud capacity
