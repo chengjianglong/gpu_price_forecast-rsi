@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# third-party checkouts, weights and run artefacts
+third_party/
+checkpoints/
+outputs/
+evaluation/
+data/
+
+.env
+api_keys.sh
