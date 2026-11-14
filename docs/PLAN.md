@@ -1,4 +1,4 @@
-# gpu-pricing-rsi: working plan
+# RSI4GPF (gpu_price_forecast-rsi): working plan
 
 A multi-agent framework that forecasts GPU rental prices and improves itself round by round.
 It is built for Track 2 (Recursive Self-Improvement) of the iterate.inc AI research hackathon,

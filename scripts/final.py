@@ -174,7 +174,7 @@ def main() -> None:
     team = Team(cfg, trained, pack, findings=findings, weights=load_weights(weights_path, agents, cfg.rule))
     result = team.run(origin, series)
     rows = result.rows[result.rows["horizon_days"].isin(packlib.SCORED_HORIZONS)].copy()
-    rows["team_id"] = "gpu-pricing-rsi"
+    rows["team_id"] = "rsi4gpf"
     result.rows = rows
     sub = ROOT / "submission"
     paths = write_outputs(result, sub, cfg)
