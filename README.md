@@ -1,4 +1,4 @@
-# gpu-pricing-rsi
+# RSI4GPF: Recursive Self-Improvement with Multi-Agent Reinforcement Learning Framework for GPU Price Forecasting
 
 **An AI scientist that forecasts GPU rental prices and keeps improving itself.** A team of LLM
 agents shares one board of evidence, debates from different perspectives and votes. A research
