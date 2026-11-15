@@ -11,7 +11,8 @@ Steps:
    - the trained team (the incumbent's checkpoint, team config and learned voting weights);
    - the same team without research findings (``use_findings`` off);
    - the untrained team (base model);
-   - Pacific's ``drift`` and ``last_value_empirical`` baselines.
+   - Pacific's ``drift`` and ``last_value_empirical`` baselines;
+   - the list-replay engine (``gpr.engine``): no LLM, nothing trained.
 
    Pooled skill gets a 90% bootstrap interval over (series, origin) blocks, and
    each variant a paired bootstrap against ``drift``.
@@ -43,6 +44,8 @@ from gpr.llm import TinkerLLM  # noqa: E402
 from gpr.research import Notebook  # noqa: E402
 from gpr.team import Team, TeamConfig, write_outputs  # noqa: E402
 from gpr.weights import VotingWeights, WeightRule  # noqa: E402
+from gpr import engine  # noqa: E402
+from gpr.offers import shared as shared_offers  # noqa: E402
 
 
 def load_weights(path: Path | None, agents: list[str], rule: WeightRule) -> VotingWeights:
@@ -110,11 +113,27 @@ def run_baseline(method: str, files, out_root: Path) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
+def run_engine(files, pack, out_root: Path) -> pd.DataFrame:
+    """The list-replay engine on the same cells. Run after ``run_baseline("drift", ...)``, whose
+    forecast files it falls back to."""
+    frames = []
+    for origin in sorted(packlib.Splits().test):
+        out = out_root / engine.METHOD / origin.isoformat()
+        out.mkdir(parents=True, exist_ok=True)
+        drift = pd.read_csv(out_root / "drift" / origin.isoformat() / "forecast.csv")
+        forecast = out / "forecast.csv"
+        engine.forecast_rows(shared_offers(pack).table, origin, packlib.rental_scope(files, origin), drift).to_csv(
+            forecast, index=False)
+        frames.append(score_frozen(files, forecast, origin, out).assign(variant=engine.METHOD))
+    return pd.concat(frames, ignore_index=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--best", help="best.json written by scripts/rsi_loop.py")
     parser.add_argument("--base", action="store_true", help="use the untrained team only (no checkpoint)")
-    parser.add_argument("--team", default=str(ROOT / "configs" / "team_v0.yaml"))
+    parser.add_argument("--team", default=str(ROOT / "configs" / "team_v0.yaml"),
+                        help="the config the loop started from: the untrained team")
     parser.add_argument("--skip-test", action="store_true", help="only write the submission")
     parser.add_argument("--skip-ablations", action="store_true")
     parser.add_argument("--model", help="base model for --base and the untrained ablation (default: the team config's)")
@@ -128,12 +147,7 @@ def main() -> None:
     best = json.loads(Path(args.best).read_text()) if args.best else {}
     cfg, checkpoint, weights_path, findings = base_cfg, None, None, []
     if best.get("checkpoint") and not args.base:
-        cfg = TeamConfig.load(args.team)
-        team_json = best.get("team") or {}
-        cfg = replace(cfg, **{k: v for k, v in team_json.items() if k in ("base_model", "temperature", "debate_rounds",
-                                                                             "debate_min_disagreement", "use_findings")})
-        if "rule" in team_json:
-            cfg.rule = WeightRule(**team_json["rule"])
+        cfg = TeamConfig.from_json({**base_cfg.to_json(), **(best.get("team") or {})})    # lenses and evidence too
         checkpoint, weights_path = best.get("sampler_checkpoint") or best["checkpoint"], best.get("weights")
         notebook = Path(args.best).parent / "notebook.jsonl"
         findings = Notebook(notebook).findings() if notebook.is_file() else []
@@ -151,9 +165,10 @@ def main() -> None:
             frames.append(run_team("trained_no_findings", replace(cfg, use_findings=False), trained, pack, files, [],
                                    load_weights(weights_path, agents, cfg.rule), out_root))
             frames.append(run_team("base_team", base_cfg, TinkerLLM(base_cfg.base_model), pack, files, [],
-                                   VotingWeights(agents, base_cfg.rule), out_root))
+                                   VotingWeights([l.name for l in base_cfg.lenses], base_cfg.rule), out_root))
         for method in ("drift", "last_value_empirical"):
             frames.append(run_baseline(method, files, out_root))
+        frames.append(run_engine(files, pack, out_root))
         cells = pd.concat(frames, ignore_index=True)
         cells.to_csv(out_root / "all_cells.csv", index=False)
         drift = cells[cells["variant"] == "drift"]

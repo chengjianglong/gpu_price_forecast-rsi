@@ -7,7 +7,11 @@ Flow per origin (docs/PLAN.md section 1):
 3. Independent round: each Forecaster posts a position without seeing the others.
 4. Up to ``debate_rounds`` rounds of Critic challenges and Forecaster revisions,
    only on series where the Forecasters disagree enough (``debate_min_disagreement``).
-5. Aggregator: weighted vote per quantile, widened by the remaining disagreement.
+5. Aggregator: weighted vote per quantile, widened by the remaining disagreement,
+   then stretched per horizon (``rule.stretch_<h>``).
+
+Off by default, on in ``configs/team_list.yaml``: ``engine`` in ``baseline_methods`` posts the
+list-replay engine's forecast on the board, and ``list_evidence`` shows the offer list.
 
 Calls are batched across series: every phase is one ``LLM.generate`` call.
 """
@@ -23,13 +27,15 @@ from typing import Any, Iterable, Sequence
 import pandas as pd
 import yaml
 
+from . import engine
 from . import pack as packlib
 from .agents import (DEFAULT_LENSES, Lens, critic_chat, forecaster_chat, market_chat, parse_challenges,
                      parse_forecast, revision_chat)
 from .board import Board, baseline_table, board_to_json, build_board
 from .llm import LLM
+from .offers import OfferTable, shared as shared_offers
 from .pack import HORIZONS, Pack
-from .weights import VotingWeights, WeightRule, aggregate, disagreement
+from .weights import VotingWeights, WeightRule, aggregate, disagreement, stretch
 
 FALLBACK_METHOD = "last_value_empirical"
 
@@ -47,12 +53,18 @@ class TeamConfig:
     use_market_analyst: bool = True
     max_events: int = 6
     use_findings: bool = True
+    list_evidence: bool = False       # show the offer list behind the median on the board
     seed: int | None = 20261106       # fixed sampling seeds, so a rerun gives the same forecasts
     rule: WeightRule = field(default_factory=WeightRule)
 
     @classmethod
     def load(cls, path: str | Path) -> "TeamConfig":
-        raw = yaml.safe_load(Path(path).read_text()) or {}
+        return cls.from_json(yaml.safe_load(Path(path).read_text()) or {})
+
+    @classmethod
+    def from_json(cls, raw: dict) -> "TeamConfig":
+        """The inverse of ``to_json``."""
+        raw = dict(raw)
         lenses = tuple(Lens(**l) for l in raw.pop("lenses", [])) or DEFAULT_LENSES
         rule = WeightRule(**raw.pop("rule", {}))
         methods = tuple(raw.pop("baseline_methods", cls.baseline_methods))
@@ -62,6 +74,15 @@ class TeamConfig:
         out = asdict(self)
         out["lenses"] = [asdict(l) for l in self.lenses]
         return out
+
+
+def baseline_rows(pack: Pack, method: str, origin: date, cache_dir: Path) -> pd.DataFrame:
+    """One of Pacific's baselines for every series at one origin, kept in ``cache_dir``."""
+    out = cache_dir / f"{method}_{origin.isoformat()}.csv"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if out.is_file():
+        return pd.read_csv(out)
+    return packlib.baselines(pack.files.series, pack.files.catalog, method, out, origin=origin, tier="all")
 
 
 @dataclass
@@ -89,17 +110,22 @@ class Team:
 
     # ---- baselines ----------------------------------------------------------
     def baselines_for(self, origin: date) -> dict:
-        methods = tuple(dict.fromkeys((FALLBACK_METHOD,) + tuple(self.cfg.baseline_methods)))
-        frames = []
-        for method in methods:
-            out = self.cache_dir / f"{method}_{origin.isoformat()}.csv"
-            out.parent.mkdir(parents=True, exist_ok=True)
-            if out.is_file():
-                frames.append(pd.read_csv(out))
-            else:
-                frames.append(packlib.baselines(self.pack.files.series, self.pack.files.catalog, method, out,
-                                                origin=origin, tier="all"))
+        """Pacific's baselines, plus the engine where the list replay itself produced the forecast."""
+        shown = tuple(self.cfg.baseline_methods)
+        methods = [m for m in dict.fromkeys((FALLBACK_METHOD,) + shown) if m != engine.METHOD]
+        if engine.METHOD in shown and "drift" not in methods:
+            methods.append("drift")      # the engine's fallback
+        by_method = {m: baseline_rows(self.pack, m, origin, self.cache_dir) for m in methods}
+        frames = list(by_method.values())
+        if engine.METHOD in shown:
+            drift = by_method["drift"]
+            rows = engine.forecast_rows(shared_offers(self.pack).table, origin, sorted(set(drift["series_id"])), drift)
+            frames.append(rows[rows["method_note"] == engine.METHOD])
         return baseline_table(pd.concat(frames, ignore_index=True))
+
+    def offer_table(self, series_id: str, origin: date) -> OfferTable | None:
+        """The offer list behind a series, cut at the origin; None unless ``list_evidence`` is on."""
+        return shared_offers(self.pack).table(series_id, origin) if self.cfg.list_evidence else None
 
     # ---- one origin -----------------------------------------------------------
     def _generate(self, chats: list) -> list[str]:
@@ -126,7 +152,8 @@ class Team:
                 from .research import findings_for
 
                 found = findings_for(self.findings, str(self.pack.info(sid).get("instrument_class")))
-            board = build_board(self.pack, sid, origin, shown, self.events, self.cfg.max_events, findings=found)
+            board = build_board(self.pack, sid, origin, shown, self.events, self.cfg.max_events, findings=found,
+                                offers=self.offer_table(sid, origin))
             if board is not None:
                 board.baselines[FALLBACK_METHOD] = by_method[FALLBACK_METHOD]
                 boards.append(board)
@@ -185,6 +212,7 @@ class Team:
             for h in HORIZONS:
                 w = self.weights.get((cls, h))
                 q10, q50, q90 = aggregate({a: p.quantiles[h] for a, p in final.items()}, w, self.cfg.rule.widen)
+                q10, q50, q90 = stretch((q10, q50, q90), self.cfg.rule.stretch_for(h))
                 rows.append({
                     "series_id": b.series_id, "origin_date": origin.isoformat(), "horizon_days": h,
                     "q10": round(q10, 6), "q50": round(q50, 6), "q90": round(q90, 6),

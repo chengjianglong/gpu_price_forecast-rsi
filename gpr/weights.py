@@ -4,6 +4,9 @@ Weights are kept per context (instrument class x horizon) and per agent. The
 fast update is Hedge: ``w <- w * exp(-eta * loss)``, then decay towards equal
 weights and a floor, then normalise. The rule's settings (``eta``, ``decay``,
 ``w_min``) are what the outer loop varies in block 3.
+
+``stretch_<h>`` stretches the voted range around its median at horizon h
+(1.0 = as voted); the Improver may set it.
 """
 
 from __future__ import annotations
@@ -20,6 +23,12 @@ class WeightRule:
     decay: float = 0.05       # pull towards equal weights per update
     w_min: float = 0.05       # floor, so no perspective is dropped
     widen: float = 0.5        # how much forecaster disagreement widens the final range
+    stretch_1: float = 1.0    # range stretch at h = 1, 3, 7
+    stretch_3: float = 1.0
+    stretch_7: float = 1.0
+
+    def stretch_for(self, horizon: int) -> float:
+        return float(getattr(self, f"stretch_{horizon}", 1.0))
 
 
 @dataclass
@@ -68,6 +77,15 @@ def aggregate(positions: Mapping[str, tuple[float, float, float]], weights: Mapp
         q10 = max(q10 - widen * spread, 1e-4)
         q90 = q90 + widen * spread
     return (q10, q50, q90)
+
+
+def stretch(q: tuple[float, float, float], scale: float) -> tuple[float, float, float]:
+    """Stretch a range around its median in log terms: 1.25 puts q10 and q90 25% further out."""
+    q10, q50, q90 = q
+    if scale == 1.0 or not (q50 > 0 and q10 > 0):
+        return q
+    low = max(q50 * (min(q10, q50) / q50) ** scale, min(q10, 1e-4))      # keep ``aggregate``'s floor
+    return (low, q50, q50 * (max(q90, q50) / q50) ** scale)
 
 
 def disagreement(positions: Mapping[str, tuple[float, float, float]]) -> float:

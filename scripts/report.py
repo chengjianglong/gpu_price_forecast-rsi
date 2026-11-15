@@ -5,6 +5,7 @@ Reads, when present:
 - results/archive.jsonl   (every member and generation: scripts/rsi_loop.py)
 - results/notebook.jsonl  (every hypothesis and its test)
 - results/long_run.json   (the 2–3 year view: scripts/long_run.py)
+- results/engine.md       (the list-replay engine against Pacific's baselines: scripts/engine_check.py)
 """
 
 from __future__ import annotations
@@ -83,6 +84,9 @@ def main() -> None:
                          f"{r['summary']} | {r['p_value']:.3f} | {r['n']} | {'kept' if r['survived'] else 'rejected'} |")
         lines.append("")
 
+    if (RES / "engine.md").is_file():
+        lines += ["## The list-replay engine (no LLM)", "",
+                  "See [engine.md](engine.md) (regenerate with `python scripts/engine_check.py`).", ""]
     if (RES / "long_run.md").is_file():
         lines += ["## The 2–3 year view", "", "See [long_run.md](long_run.md) (regenerate with `python scripts/long_run.py`).", ""]
     (RES / "report.md").write_text("\n".join(lines))

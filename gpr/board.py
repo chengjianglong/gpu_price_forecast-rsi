@@ -20,6 +20,7 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 import pandas as pd
 
+from .offers import OfferTable, list_evidence
 from .pack import HORIZONS, Pack
 
 
@@ -119,8 +120,11 @@ def _changes(values: np.ndarray, h: int) -> np.ndarray:
 def build_board(pack: Pack, series_id: str, origin: date,
                 baselines: dict[str, dict[int, tuple[float, float, float]]],
                 events: Iterable[Any] = (), max_events: int = 6, path_days: int = 60,
-                findings: Sequence[tuple[str, str]] = ()) -> Board | None:
-    """Assemble the evidence pack for one series at one origin; None if there is no history."""
+                findings: Sequence[tuple[str, str]] = (), offers: OfferTable | None = None) -> Board | None:
+    """Assemble the evidence pack for one series at one origin; None if there is no history.
+
+    ``offers`` (``Offers.table``, cut at the origin) adds the list behind the median.
+    """
     hist = pack.history(series_id, origin)
     if hist.empty:
         return None
@@ -172,6 +176,10 @@ def build_board(pack: Pack, series_id: str, origin: date,
 
     if "n_providers" in hist and hist["n_providers"].notna().any():
         add(f"Providers in the median, last 7 days: {hist['n_providers'].tail(7).median():.0f}")
+
+    if offers is not None and offers.last_day <= origin:
+        for text in list_evidence(offers):
+            add(text)
 
     for method, by_h in baselines.items():
         add(f"Baseline {method} (q10, q50, q90): " + "; ".join(f"h={h}: {fmt(*by_h[h])}" for h in sorted(by_h)))
