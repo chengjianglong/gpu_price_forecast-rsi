@@ -3,6 +3,7 @@ stretch. The last test needs Pacific's pack and is skipped without it."""
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -129,6 +130,9 @@ def test_median_moves_splits_by_cause():
     assert out["offers"] == 6 and out["frequent_offers"] == 1
     assert out["list"] > 0                                    # ``late`` joining and ``gone`` leaving move the median
     assert out["rare"] > 0 and out["frequent"] == 0           # ``stepper`` is near the middle, ``mover`` is not
+    swapped = pd.DataFrame([{"day": START.toordinal() + i, "snapshot": 0, "provider": p, "sku": "", "region": "",
+                             "price": v} for i, (p, v) in enumerate((("a", 1.0), ("b", 2.0)))])
+    assert median_moves(make_table(rows=swapped))["list"] == pytest.approx(np.log(2))   # the whole list replaced
 
 
 def test_list_evidence_marks_the_middle_and_names_who_joined():
@@ -140,11 +144,16 @@ def test_list_evidence_marks_the_middle_and_names_who_joined():
     assert "left: gone|h100" in after[1]
 
 
-def test_list_evidence_shows_an_offer_once_however_many_snapshots():
+def test_list_evidence_takes_the_middle_over_every_snapshot():
     rows = offer_rows()
-    twice = rows[(rows["day"] - START.toordinal()) % 3 == 0].assign(snapshot=1)   # a second snapshot every third day
-    table = make_table(rows=pd.concat([rows, twice]))
-    assert table.prices.shape[1] == 12 and list_evidence(table) == list_evidence(make_table())
+    again = rows[rows["day"] == rows["day"].max()].assign(snapshot=1)      # a second snapshot today ...
+    again.loc[again["provider"] == "cheap", "price"] = 5.0                # ... in which one offer has repriced
+    table = make_table(rows=pd.concat([rows, again]))
+    text, changes = list_evidence(table)
+    assert "10 observations of 5 offers" in text and text.count(" x2 ") == 4
+    marked = [float(line.split()[1]) for line in text.split("\n") if " << (" in line]
+    assert marked == [2.0, 2.6] and table.value[-1] == 2.3         # the official median is between them
+    assert "joined: none; left: none" in changes                   # a new snapshot is not a new offer
 
 
 def test_stretch_widens_around_the_median_and_one_is_a_no_op():
@@ -154,6 +163,11 @@ def test_stretch_widens_around_the_median_and_one_is_a_no_op():
     assert stretch((2.0, 2.0, 2.0), 3.0) == (2.0, 2.0, 2.0)        # a flat forecast stays flat
     rule = WeightRule(stretch_7=1.65)
     assert rule.stretch_for(7) == 1.65 and rule.stretch_for(3) == 1.0 and rule.stretch_for(30) == 1.0
+
+
+def test_a_saved_team_config_restores_in_full():
+    cfg = TeamConfig.load(Path(__file__).parents[1] / "configs" / "team_list.yaml")
+    assert len(cfg.lenses) == 5 and TeamConfig.from_json(json.loads(json.dumps(cfg.to_json()))) == cfg
 
 
 def test_improver_may_set_the_stretch_within_bounds():

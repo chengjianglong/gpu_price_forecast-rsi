@@ -59,7 +59,12 @@ class TeamConfig:
 
     @classmethod
     def load(cls, path: str | Path) -> "TeamConfig":
-        raw = yaml.safe_load(Path(path).read_text()) or {}
+        return cls.from_json(yaml.safe_load(Path(path).read_text()) or {})
+
+    @classmethod
+    def from_json(cls, raw: dict) -> "TeamConfig":
+        """The inverse of ``to_json``."""
+        raw = dict(raw)
         lenses = tuple(Lens(**l) for l in raw.pop("lenses", [])) or DEFAULT_LENSES
         rule = WeightRule(**raw.pop("rule", {}))
         methods = tuple(raw.pop("baseline_methods", cls.baseline_methods))

@@ -117,18 +117,18 @@ test is not touched.
 | A falling provider count precedes price rises | corr = −0.16 (p = 0.11) | rejected |
 | Collectors of the same GPU follow each other with a lag | corr = −0.08 | rejected |
 
-**What moves a median** (data to 30 Sep, 154 series; `gpr.offers.median_moves`). Each day-to-day
+**What moves a median** (data to 30 Sep, 167 series; `gpr.offers.median_moves`). Each day-to-day
 move is split, in order, into three causes:
 
 | | Offers joining or leaving | Frequent repricers | Other repricing |
 |---|---|---|---|
-| All classes | 27% | 48% | 25% |
-| Neocloud rate cards (48 series) | 52% | 4% | 44% |
+| All classes | 31% | 45% | 24% |
+| Neocloud rate cards (50 series) | 57% | 3% | 40% |
 | Hyperscaler lists (17) | 93% | 0% | 7% |
 | Marketplace asks (23) | 28% | 68% | 4% |
 
-- **A move in a posted median is often not a provider changing its price.** For rate cards, half
-  of the movement is the sample changing.
+- **A move in a posted median is often not a provider changing its price.** For rate cards, more
+  than half of the movement is the sample changing.
 - **This is what the offer list on the board is for:** an agent that sees who sits in the middle,
   and who just joined or left, can tell the two apart.
 

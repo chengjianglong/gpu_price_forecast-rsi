@@ -23,7 +23,7 @@ forecasts) together with direction B's memory: a research notebook and a shared 
 | **Findings** | [FINDINGS.md](FINDINGS.md) · tables in [results/report.md](results/report.md) · [results/long_run.md](results/long_run.md) |
 
 > **Status, 14 Nov:**
-> - **Built and tested:** every component (42 tests), with each piece of the original team run
+> - **Built and tested:** every component (43 tests), with each piece of the original team run
 >   end to end on Tinker.
 > - **Added 15 Nov from a sister project:** the list-replay engine, the offer list on the board
 >   and a list-reading team ([below](#carried-over-from-the-sister-project)). The engine is
@@ -243,7 +243,7 @@ bash reproduce.sh                          # verify pack → tests → locked te
 
 | Command | What it does |
 |---|---|
-| `.venv/bin/python -m pytest -q` | 42 tests: no look-ahead, rewards, parsing, voting, acceptance test, notebook, engine (one needs the pack and checks the engine against its recorded forecast) |
+| `.venv/bin/python -m pytest -q` | 43 tests: no look-ahead, rewards, parsing, voting, acceptance test, notebook, engine (one needs the pack and checks the engine against its recorded forecast) |
 | `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm fake` | One forecast date offline, scored by Pacific's scorer |
 | `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm fake --config configs/team_list.yaml` | The same with the list-reading team |
 | `.venv/bin/python scripts/engine_check.py` | The list-replay engine against Pacific's baselines, with the shuffled-data control (no LLM, a few minutes) |

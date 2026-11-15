@@ -132,7 +132,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--best", help="best.json written by scripts/rsi_loop.py")
     parser.add_argument("--base", action="store_true", help="use the untrained team only (no checkpoint)")
-    parser.add_argument("--team", default=str(ROOT / "configs" / "team_v0.yaml"))
+    parser.add_argument("--team", default=str(ROOT / "configs" / "team_v0.yaml"),
+                        help="the config the loop started from: the untrained team")
     parser.add_argument("--skip-test", action="store_true", help="only write the submission")
     parser.add_argument("--skip-ablations", action="store_true")
     parser.add_argument("--model", help="base model for --base and the untrained ablation (default: the team config's)")
@@ -146,12 +147,7 @@ def main() -> None:
     best = json.loads(Path(args.best).read_text()) if args.best else {}
     cfg, checkpoint, weights_path, findings = base_cfg, None, None, []
     if best.get("checkpoint") and not args.base:
-        cfg = TeamConfig.load(args.team)
-        team_json = best.get("team") or {}
-        cfg = replace(cfg, **{k: v for k, v in team_json.items() if k in ("base_model", "temperature", "debate_rounds",
-                                                                             "debate_min_disagreement", "use_findings")})
-        if "rule" in team_json:
-            cfg.rule = WeightRule(**team_json["rule"])
+        cfg = TeamConfig.from_json({**base_cfg.to_json(), **(best.get("team") or {})})    # lenses and evidence too
         checkpoint, weights_path = best.get("sampler_checkpoint") or best["checkpoint"], best.get("weights")
         notebook = Path(args.best).parent / "notebook.jsonl"
         findings = Notebook(notebook).findings() if notebook.is_file() else []
@@ -169,7 +165,7 @@ def main() -> None:
             frames.append(run_team("trained_no_findings", replace(cfg, use_findings=False), trained, pack, files, [],
                                    load_weights(weights_path, agents, cfg.rule), out_root))
             frames.append(run_team("base_team", base_cfg, TinkerLLM(base_cfg.base_model), pack, files, [],
-                                   VotingWeights(agents, base_cfg.rule), out_root))
+                                   VotingWeights([l.name for l in base_cfg.lenses], base_cfg.rule), out_root))
         for method in ("drift", "last_value_empirical"):
             frames.append(run_baseline(method, files, out_root))
         frames.append(run_engine(files, pack, out_root))

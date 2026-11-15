@@ -79,14 +79,14 @@ Each shuffled copy keeps every offer and its listing pattern, and applies the re
 
 ## What moves a median (data to 30 Sep 2026)
 
-Each day-to-day move of a median is split, in order, into offers joining or leaving the list, repricing by frequent repricers (offers that changed price on at least 30% of their listed days) and repricing by every other offer. Shares are of the summed absolute log move over 154 series.
+Each day-to-day move of a median is split, in order, into offers joining or leaving the list, repricing by frequent repricers (offers that changed price on at least 30% of their listed days) and repricing by every other offer. Shares are of the summed absolute log move over 167 series.
 
 | Instrument class | Series | List changes | Frequent repricers | Other repricing | Typical offers | Days the median moved |
 |---|---|---|---|---|---|---|
-| aggregator_cheapest | 6 | 0% | 85% | 15% | 1 | 3% |
+| aggregator_cheapest | 17 | 47% | 45% | 8% | 2 | 2% |
 | hyperscaler_list | 17 | 93% | 0% | 7% | 23 | 2% |
 | hyperscaler_spot | 36 | 18% | 45% | 37% | 3 | 14% |
 | marketplace_ask | 23 | 28% | 68% | 4% | 1 | 39% |
-| neocloud_rate_card | 48 | 52% | 4% | 44% | 8 | 9% |
+| neocloud_rate_card | 50 | 57% | 3% | 40% | 8 | 9% |
 | neocloud_spot | 24 | 16% | 3% | 81% | 6 | 9% |
-| all | 154 | 27% | 48% | 25% | 3 | 9% |
+| all | 167 | 31% | 45% | 24% | 3 | 9% |

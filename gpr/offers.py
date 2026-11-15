@@ -179,44 +179,49 @@ def make_placebo(table: OfferTable, seed: int) -> OfferTable:
 def list_evidence(table: OfferTable, around: int = 5, full_up_to: int = 14, window_days: int = 30,
                   changes_days: int = 14) -> list[str]:
     """The list behind the median on the table's last day, as board evidence (``table`` already
-    cut at the origin). Empty when no offers are listed that day. A collector's same-day
-    snapshots are merged, so each offer appears once."""
-    if np.isnan(table.prices[-1]).all():
-        return []
-    days = table.days
-    name = [offer_name(s) for s in table.slots]
-    dup = [s.rsplit("|", 1)[1] for s in table.slots]
-    merged = pd.DataFrame(table.prices.T).groupby([name, dup], sort=False).first()   # a day's first snapshot
-    names, prices = merged.index.get_level_values(0).to_numpy(), merged.to_numpy().T
-    today = prices[-1]
+    cut at the origin). Empty when no offers are listed that day.
+
+    Every observation counts towards the middle, as in the pack's median. An offer its collector
+    saw several times that day at one price is one line, marked ``xN``.
+    """
+    days, today = table.days, table.prices[-1]
     here = np.flatnonzero(~np.isnan(today))
-    order = here[np.argsort(today[here], kind="stable")]
+    if len(here) == 0:
+        return []
+    names = np.array([offer_name(s) for s in table.slots])
+    offer = np.unique([s.rsplit("|", 2)[0] + s[s.rindex("|"):] for s in table.slots],
+                      return_inverse=True)[1]                                      # a slot without its snapshot
+    daily = pd.DataFrame(table.prices.T).groupby(offer).first().to_numpy().T     # per offer, a day's first snapshot
+    order = here[np.lexsort((offer[here], today[here]))]                           # by price, an offer's snapshots together
     n = len(order)
-    middle = {(n - 1) // 2, n // 2}
+    start = np.flatnonzero(np.r_[True, (np.diff(offer[order]) != 0) | (np.diff(today[order]) != 0)])
+    end = np.r_[start[1:], n]                                                      # line g holds order[start[g]:end[g]]
+    mid = set(np.searchsorted(start, [(n - 1) // 2, n // 2], side="right") - 1)
+    k, m = len(start), len(set(offer[here]))
+    show = range(k) if k <= full_up_to else range(max(0, min(mid) - around), min(k, max(mid) + around + 1))
+    count = f"{n} offers" if m == n else f"{n} observations of {m} offers ('xN' = seen N times that day at that price)"
+    head = f"The list behind this median on {table.last_day.isoformat()}: {count}, sorted by price; '<<' marks the middle."
+    if k > full_up_to:
+        head += (f" Showing the offers around the middle; {start[show[0]]} cheaper ones from {today[order[0]]:.4g} and "
+                 f"{n - end[show[-1]]} dearer ones up to {today[order[-1]]:.4g} are not shown.")
     lo = int(np.searchsorted(days, days[-1] - window_days))
-    show = range(n) if n <= full_up_to else range(max(0, (n - 1) // 2 - around), min(n, n // 2 + around + 1))
-    head = (f"The list behind this median on {table.last_day.isoformat()}: {n} offers, sorted by price; "
-            "'<<' marks the middle.")
-    if n > full_up_to:
-        head += (f" Showing the offers around the middle; {min(show)} cheaper ones from {today[order[0]]:.4g} and "
-                 f"{n - 1 - max(show)} dearer ones up to {today[order[-1]]:.4g} are not shown.")
     lines = [head]
-    for pos in show:
-        j = order[pos]
-        col = prices[lo:, j]
+    for g in show:
+        j = order[start[g]]
+        col = daily[lo:, offer[j]]
         listed = ~np.isnan(col)
-        steps = np.diff(col[listed])
-        moved = np.flatnonzero(np.abs(steps) > 1e-9)
+        moved = np.flatnonzero(np.abs(np.diff(col[listed])) > 1e-9)
         last = ""
         if len(moved):
             idx = np.flatnonzero(listed)
-            k = moved[-1]
-            when = date.fromordinal(int(days[lo + idx[k + 1]])).isoformat()[5:]
-            last = f"; last change {when}: {col[idx[k]]:.4g} -> {col[idx[k + 1]]:.4g}"
-        lines.append(f"  {names[j][:46]} {today[j]:.4g}{' <<' if pos in middle else ''} "
+            i = moved[-1]
+            when = date.fromordinal(int(days[lo + idx[i + 1]])).isoformat()[5:]
+            last = f"; last change {when}: {col[idx[i]]:.4g} -> {col[idx[i + 1]]:.4g}"
+        times = end[g] - start[g]
+        lines.append(f"  {names[j][:46]} {today[j]:.4g}{f' x{times}' if times > 1 else ''}{' <<' if g in mid else ''} "
                      f"(listed {int(listed.sum())} of the last {len(col)} days; {len(moved)} price changes{last})")
     lo = int(np.searchsorted(days, days[-1] - changes_days))
-    now, then = set(names[here]), set(names[~np.isnan(prices[lo])])
+    now, then = set(names[here]), set(names[~np.isnan(table.prices[lo])])
 
     def some(items: set) -> str:
         items = sorted(items)
@@ -251,12 +256,13 @@ def median_moves(table: OfferTable) -> dict:
     for i in range(1, n):
         a, b = prices[i - 1], prices[i]
         common = listed[i - 1] & listed[i]
-        if not common.any():
-            continue
         before, after = med(a), med(b)
         if not (before > 0 and after > 0) or abs(np.log(after / before)) < 1e-12:
             continue
         moves += 1
+        if not common.any():                                  # the whole list was replaced
+            total["list"] += abs(np.log(after / before))
+            continue
         stayed = med(np.where(common, a, np.nan))                                   # exits removed
         some = med(np.where(common & frequent, b, np.where(common, a, np.nan)))     # frequent repricers moved
         everyone = med(np.where(common, b, np.nan))                                 # everyone repriced
