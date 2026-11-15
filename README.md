@@ -23,8 +23,12 @@ forecasts) together with direction B's memory: a research notebook and a shared 
 | **Findings** | [FINDINGS.md](FINDINGS.md) · tables in [results/report.md](results/report.md) · [results/long_run.md](results/long_run.md) |
 
 > **Status, 14 Nov:**
-> - **Built and tested:** every component (27 offline tests), with each piece run end to end on
->   Tinker.
+> - **Built and tested:** every component (42 tests), with each piece of the original team run
+>   end to end on Tinker.
+> - **Added 15 Nov from a sister project:** the list-replay engine, the offer list on the board
+>   and a list-reading team ([below](#carried-over-from-the-sister-project)). The engine is
+>   measured against Pacific's baselines in [results/engine.md](results/engine.md). The
+>   list-reading team has run offline only, not yet on Tinker.
 > - **Running:** two overnight self-improvement runs, one on Qwen and one on DeepSeek, until 08:00
 >   on 15 Nov or until their plateau rule stops them.
 > - **Still to come:** the locked-test results and the submission file, written by
@@ -66,6 +70,7 @@ flowchart LR
 |---|---|---|
 | Data Scout | Builds each series' history up to the origin, plus related features and optional news | Code |
 | Quant Analyst | Pacific's `last_value_empirical` and `drift` baselines, posted on the board | Code (starter kit) |
+| List-replay engine | Replays what each offer behind a median did, then takes the median again. A no-LLM yardstick in the locked test, and optional evidence on the board | Code |
 | Forecasters ×3 | Independent q10/q50/q90 for 1, 3, 7 and 30 days, each from its own lens, citing evidence IDs | LLM (shared LoRA adapter) |
 | Critic | Challenges weak reasoning, ranges that are too narrow, bad citations and any look-ahead | LLM |
 | Market Analyst | Summarises news events dated before the origin, when there are any | LLM |
@@ -117,7 +122,8 @@ quantiles, missing horizons, bad citations) costs reward.
 - **Locked test comparisons:**
   - the trained team, with and without findings;
   - the untrained team;
-  - Pacific's `drift` and `last_value_empirical`.
+  - Pacific's `drift` and `last_value_empirical`;
+  - the list-replay engine (no LLM, nothing trained).
 
   Each comes with a 90% bootstrap interval and a paired test against drift.
 
@@ -145,6 +151,29 @@ quantiles, missing horizons, bad citations) costs reward.
 Untrained members are level with the baseline, and their ranges are too narrow: 17% of truths
 fall above q90, against a 10% target. The acceptance test correctly refuses gains of that size.
 The overnight run has to clear it.
+
+## Carried over from the sister project
+
+`gpu-price` is a sister project on the same pack whose forecasters read the list of offers behind
+each median. What held up in its own tests is ported here:
+
+| From `gpu-price` | Here |
+|---|---|
+| List-replay engine | `gpr/engine.py`, `gpr/offers.py`: a comparison arm in the locked test and optional evidence on the board |
+| Agents that read the offer list, with no second round | `configs/team_list.yaml`: `list_evidence`, five lenses, `debate_rounds: 0` |
+| Wider ranges at 3 and 7 days | `rule.stretch_1`, `stretch_3`, `stretch_7`, which the Improver may set |
+| Shuffled-data control and what moves a median | `scripts/engine_check.py` |
+
+- **All of it is off in `team_v0`,** so checkpoints trained on its prompts stay valid. The one
+  change to a `team_v0` loop run is that the Improver may now propose a range stretch.
+- **On our wider scope the engine's gain over drift is small:** 4.1% (+1.3% to +6.9%) on the
+  training window, and not established on validation (+0.7%, −6.2% to +7.2%). See
+  [FINDINGS.md](FINDINGS.md) section 4 and [results/engine.md](results/engine.md).
+- **The list-reading team has only run offline.** Its settings were chosen in `gpu-price` after
+  weeks that include our locked-test origins, so a locked-test score for it would not be blind.
+- **Left out:** what did not hold up there (the AI scientist that tuned the engine, the
+  pretrained time-series model, switching a series to drift), and what this repo already has
+  (its own RL and long view; it stores no resale values).
 
 ## Choosing the base model
 
@@ -214,8 +243,10 @@ bash reproduce.sh                          # verify pack → tests → locked te
 
 | Command | What it does |
 |---|---|
-| `.venv/bin/python -m pytest -q` | 27 offline tests: no look-ahead, rewards, parsing, voting, acceptance test, notebook |
+| `.venv/bin/python -m pytest -q` | 42 tests: no look-ahead, rewards, parsing, voting, acceptance test, notebook, engine (one needs the pack and checks the engine against its recorded forecast) |
 | `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm fake` | One forecast date offline, scored by Pacific's scorer |
+| `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm fake --config configs/team_list.yaml` | The same with the list-reading team |
+| `.venv/bin/python scripts/engine_check.py` | The list-replay engine against Pacific's baselines, with the shuffled-data control (no LLM, a few minutes) |
 | `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm tinker --limit 3` | The same on Tinker |
 | `.venv/bin/python scripts/rsi_loop.py --deadline 2026-11-15T08:00` | The self-improvement loop (`configs/rsi.yaml`); add `--model deepseek-ai/DeepSeek-V4.1-Flash:peft:262144` for DeepSeek |
 | `.venv/bin/python scripts/compare_models.py <qwen run> <deepseek run>` | Chooses the base model on validation |
@@ -229,10 +260,12 @@ bash reproduce.sh                          # verify pack → tests → locked te
 ```
 gpr/
   pack.py        Pacific's starter scripts (series, baselines, scorer), splits, rental scope
+  offers.py      the offers behind each median, cut at the origin; shuffled copies; list evidence
+  engine.py      the list-replay engine (no LLM)
   board.py       the shared board: evidence IDs, positions, challenges
   agents.py      prompts and strict JSON parsing for Forecasters, Critic, Market Analyst
   team.py        one forecast date: independent round → debate → weighted vote
-  weights.py     Hedge voting weights with decay and a floor
+  weights.py     Hedge voting weights with decay and a floor; range stretch per horizon
   research.py    the research notebook: hypothesis families, tests, findings
   rewards.py     cell skill, penalties, truth caps
   rl.py          GRPO-style RL steps on a Tinker LoRA adapter
@@ -241,9 +274,9 @@ gpr/
   loop.py        generations, exploit and explore, acceptance, stopping
   llm.py fake.py Tinker sampler (fixed seeds) and an offline fake
   data/          optional Exa collector and a time-sliced store
-scripts/         run_origin, rsi_loop, final, long_run, report, figures, collect
-configs/         team_v0.yaml, rsi.yaml, sources.yaml
-results/         report.md, long_run.md (and final.json, notebook.jsonl after the run)
+scripts/         run_origin, rsi_loop, final, engine_check, long_run, report, figures, collect
+configs/         team_v0.yaml, team_list.yaml, rsi.yaml, sources.yaml
+results/         report.md, engine.md, long_run.md (and final.json, notebook.jsonl after the run)
 docs/            PLAN.md, ATTRIBUTION.md, figures/
 ```
 

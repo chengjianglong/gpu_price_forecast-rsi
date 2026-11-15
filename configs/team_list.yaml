@@ -1,0 +1,54 @@
+# The list-reading team: what held up in the sister project gpu-price, as a starting point.
+# Against team_v0: the offer list and the list-replay engine on the board, five list-reading
+# Forecasters, no debate round, and ranges stretched at 3 and 7 days.
+# Those results came from another model (gpt-6.1-sol) and a plain average. Nothing is claimed for
+# this team until it passes the acceptance test on the validation origins. Its settings were
+# chosen in gpu-price after weeks that include our locked-test origins, so its locked-test score would
+# not be blind.
+name: team_list
+base_model: Qwen/Qwen3.5-9B
+temperature: 0.7
+max_tokens: 600
+baseline_methods: [last_value_empirical, drift, engine]
+list_evidence: true
+debate_rounds: 0
+debate_min_disagreement: 0.0
+use_market_analyst: true
+max_events: 6
+rule:
+  eta: 2.0
+  decay: 0.05
+  w_min: 0.05
+  widen: 0.5
+  stretch_1: 1.0
+  stretch_3: 1.25
+  stretch_7: 1.65
+lenses:
+  - name: list_reader
+    view: >-
+      You are the list reader: work out which offer is in the middle of the list, how far the
+      middle can move given the offers next to it, and whether an offer joining or leaving would
+      shift it.
+  - name: repricer_watcher
+    view: >-
+      You are the repricer watcher: watch the offers that change price often. Decide whether their
+      recent direction is likely to continue, and whether that would move the middle of the list.
+  - name: base_rate_keeper
+    view: >-
+      You are the base-rate keeper: forecast from the historical frequency and size of
+      published-price changes. Distinguish sticky prices from prices that change almost daily, and
+      use observed changes over comparable horizons, including unchanged periods, to guide your
+      q10, q50 and q90. Treat recent direction as limited evidence: damp its continuation as the
+      horizon grows unless earlier history supports persistence. When history is short, keep the
+      median near today's value and allow uncertainty in both directions rather than treating an
+      unbroken recent trend as certain.
+  - name: combiner
+    view: >-
+      You are the combiner: weigh the reference forecasts on the board (last value with its
+      empirical range, drift, and the list-replay engine) against the evidence. Decide where they
+      disagree and which to trust for this price.
+  - name: risk_spotter
+    view: >-
+      You are the risk spotter: look for what could make this price jump or snap back: a one-day
+      jump that may be temporary, an offer that just appeared or vanished, a price that looks out
+      of line with the rest of the list.

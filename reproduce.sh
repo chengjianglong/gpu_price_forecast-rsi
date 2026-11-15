@@ -45,6 +45,9 @@ else
   .venv/bin/python scripts/final.py --best results/best.json
 fi
 
-echo "== 5. results tables"
+echo "== 5. the list-replay engine against Pacific's baselines (no LLM; validation and training origins only)"
+.venv/bin/python scripts/engine_check.py
+
+echo "== 6. results tables"
 .venv/bin/python scripts/report.py
-echo "done: submission/forecast_2026-11-06.csv, results/final.json, results/report.md"
+echo "done: submission/forecast_2026-11-06.csv, results/final.json, results/engine.md, results/report.md"

@@ -27,6 +27,9 @@ BOUNDS = {
     "rule.decay": (0.0, 0.5),
     "rule.w_min": (0.0, 0.3),
     "rule.widen": (0.0, 2.0),
+    "rule.stretch_1": (0.5, 3.0),
+    "rule.stretch_3": (0.5, 3.0),
+    "rule.stretch_7": (0.5, 3.0),
 }
 MAX_VIEW_CHARS = 600
 
@@ -54,7 +57,9 @@ def improver_chat(cfg: TeamConfig, summary: dict, table: str, history: list[str]
         f"Validation summary: {json.dumps(summary, default=str)}\n\nBy instrument class and horizon:\n{table}\n\n"
         f"Current settings: temperature {cfg.temperature}, debate_rounds {cfg.debate_rounds}, "
         f"debate_min_disagreement {cfg.debate_min_disagreement}, rule.eta {cfg.rule.eta}, rule.decay "
-        f"{cfg.rule.decay}, rule.w_min {cfg.rule.w_min}, rule.widen {cfg.rule.widen}.\nForecaster lenses:\n{lenses}\n\n"
+        f"{cfg.rule.decay}, rule.w_min {cfg.rule.w_min}, rule.widen {cfg.rule.widen}, range stretch around the "
+        f"median (1 = as voted) rule.stretch_1 {cfg.rule.stretch_1}, rule.stretch_3 {cfg.rule.stretch_3}, "
+        f"rule.stretch_7 {cfg.rule.stretch_7}.\nForecaster lenses:\n{lenses}\n\n"
         f"Edits tried before and their outcome:\n" + ("\n".join(history[-8:]) or "(none)") + "\n\n"
         "Propose ONE or TWO edits most likely to raise validation skill. Allowed paths: "
         f"{', '.join(BOUNDS)} (numbers within bounds {json.dumps(BOUNDS)}), and lenses.<name>.view (rewrite a "

@@ -127,7 +127,8 @@ def run(team_cfg: TeamConfig, rl_cfg: RLConfig, loop_cfg: LoopConfig, out_dir: P
         return build_pool(pack, list(splits.train), lambda o: packlib.rental_scope(files, o),
                           helper.baselines_for, team_cfg.baseline_methods, cap=TRAIN_TRUTH_CAP,
                           max_series_per_origin=loop_cfg.max_series_per_origin, seed=loop_cfg.seed,
-                          findings=notebook.findings() if team_cfg.use_findings else ())
+                          findings=notebook.findings() if team_cfg.use_findings else (),
+                          offers_for=helper.offer_table)
 
     if loop_cfg.use_research:
         for r in notebook.iterate(pack, None, iteration=0):

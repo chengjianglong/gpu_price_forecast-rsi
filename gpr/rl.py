@@ -58,8 +58,12 @@ class Example:
 def build_pool(pack: Pack, origins: Sequence[date], series_for: Callable[[date], Sequence[str]],
                baselines_for: Callable[[date], dict], shown_methods: Sequence[str], cap: date = TRAIN_TRUTH_CAP,
                events: Sequence[Any] = (), max_series_per_origin: int | None = None,
-               seed: int = 0, findings: Sequence[Any] = ()) -> list[Example]:
-    """Boards with truth for every training origin (truth dated on or before ``cap`` only)."""
+               seed: int = 0, findings: Sequence[Any] = (),
+               offers_for: Callable[[str, date], Any] | None = None) -> list[Example]:
+    """Boards with truth for every training origin (truth dated on or before ``cap`` only).
+
+    ``offers_for`` (``Team.offer_table``) puts the offer list on the boards, as at evaluation.
+    """
     rng = random.Random(seed)
     pool = []
     for origin in origins:
@@ -80,7 +84,7 @@ def build_pool(pack: Pack, origins: Sequence[date], series_for: Callable[[date],
 
                 found = findings_for(findings, str(pack.info(sid).get("instrument_class")))
             board = build_board(pack, sid, origin, {m: by_method[m] for m in shown_methods if m in by_method}, events,
-                                findings=found)
+                                findings=found, offers=offers_for(sid, origin) if offers_for else None)
             if board is None:
                 continue
             board.baselines[FALLBACK_METHOD] = by_method[FALLBACK_METHOD]
