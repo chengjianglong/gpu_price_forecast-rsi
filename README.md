@@ -18,14 +18,15 @@ forecasts) together with direction B's memory: a research notebook and a shared 
 | **Scored question** | Posted GPU rental prices 1, 3 and 7 days after 6 Nov 2026, as q10/q50/q90 for the 37 headline series |
 | **Argued question** | H100 and A100 rent and resale value in late 2028 and 2029 |
 | **Data** | Pacific's `gpu-price-pack-v0.1.1-handover` only (3.78M posted offers, 31M AWS spot ticks, indices, MLPerf); no external data by default |
-| **Model** | `Qwen/Qwen3.5-9B` with LoRA on Tinker, plus code-only scoring with Pacific's own `scorer.py` |
+| **Models** | `Qwen/Qwen3.5-9B` and `DeepSeek-V4.1-Flash` with LoRA on Tinker, run through identical loops; the better one is chosen on validation only ([below](#choosing-the-base-model)). Scoring is code-only, with Pacific's own `scorer.py` |
 | **Bar to beat** | Pacific's `drift`: +0.20 pooled skill at the 24 Oct cutoff, +0.17 over 15 weekly origins |
 | **Findings** | [FINDINGS.md](FINDINGS.md) · tables in [results/report.md](results/report.md) · [results/long_run.md](results/long_run.md) |
 
 > **Status, 14 Nov:**
 > - **Built and tested:** every component (27 offline tests), with each piece run end to end on
 >   Tinker.
-> - **Running:** the overnight self-improvement run, until 08:00 on 15 Nov.
+> - **Running:** two overnight self-improvement runs, one on Qwen and one on DeepSeek, until 08:00
+>   on 15 Nov or until their plateau rule stops them.
 > - **Still to come:** the locked-test results and the submission file, written by
 >   `scripts/final.py` after that run. No gain over the baselines is claimed yet.
 
@@ -145,6 +146,28 @@ Untrained members are level with the baseline, and their ranges are too narrow: 
 fall above q90, against a 10% target. The acceptance test correctly refuses gains of that size.
 The overnight run has to clear it.
 
+## Choosing the base model
+
+Two open models run the same self-improvement loop with the same config, seeds, training pool,
+validation origins and stopping rules. Only `rl.base_model` differs.
+
+| | Qwen | DeepSeek |
+|---|---|---|
+| Tinker model | `Qwen/Qwen3.5-9B` | `deepseek-ai/DeepSeek-V4.1-Flash:peft:262144` |
+| Run | `outputs/rsi/overnight` | `outputs/rsi/overnight_deepseek` |
+| Smoke test at 15 Oct | 97 series, 679 calls in 24 s, 1 fallback | 6 series, 42 calls in 11 s, 0 parse problems |
+
+**Decision rule (fixed before the runs finish):**
+1. Compare each model's best validation member with a paired bootstrap on the matched cells.
+2. A model wins if P(better) >= 0.9.
+3. Otherwise it's a tie, and the winner is:
+   - the model whose run accepted an incumbent over Pacific's baseline;
+   - if both or neither did, the one with higher validation skill.
+
+The locked test is never used to choose, and only the chosen model goes to `scripts/final.py`.
+`python scripts/compare_models.py outputs/rsi/overnight outputs/rsi/overnight_deepseek` writes
+`results/model_comparison.md`.
+
 ## The 2–3 year view (argued from the pack)
 
 ![Older GPUs priced above B200 parity per unit of measured work](docs/figures/capability_parity.png)
@@ -194,7 +217,8 @@ bash reproduce.sh                          # verify pack → tests → locked te
 | `.venv/bin/python -m pytest -q` | 27 offline tests: no look-ahead, rewards, parsing, voting, acceptance test, notebook |
 | `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm fake` | One forecast date offline, scored by Pacific's scorer |
 | `.venv/bin/python scripts/run_origin.py --origin 2026-10-15 --llm tinker --limit 3` | The same on Tinker |
-| `.venv/bin/python scripts/rsi_loop.py --deadline 2026-11-15T08:00` | The self-improvement loop (`configs/rsi.yaml`) |
+| `.venv/bin/python scripts/rsi_loop.py --deadline 2026-11-15T08:00` | The self-improvement loop (`configs/rsi.yaml`); add `--model deepseek-ai/DeepSeek-V4.1-Flash:peft:262144` for DeepSeek |
+| `.venv/bin/python scripts/compare_models.py <qwen run> <deepseek run>` | Chooses the base model on validation |
 | `.venv/bin/python scripts/final.py --best outputs/rsi/<run>/best.json` | Locked test, ablations and the submission |
 | `.venv/bin/python scripts/long_run.py` | The 2–3 year view |
 | `.venv/bin/python scripts/figures.py` | Regenerates the figures in this README |

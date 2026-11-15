@@ -117,17 +117,20 @@ def main() -> None:
     parser.add_argument("--team", default=str(ROOT / "configs" / "team_v0.yaml"))
     parser.add_argument("--skip-test", action="store_true", help="only write the submission")
     parser.add_argument("--skip-ablations", action="store_true")
+    parser.add_argument("--model", help="base model for --base and the untrained ablation (default: the team config's)")
     args = parser.parse_args()
 
     files = packlib.build(packlib.DATA_CUTOFF)
     pack = packlib.Pack(files)
     base_cfg = TeamConfig.load(args.team)
+    if args.model:
+        base_cfg.base_model = args.model
     best = json.loads(Path(args.best).read_text()) if args.best else {}
     cfg, checkpoint, weights_path, findings = base_cfg, None, None, []
     if best.get("checkpoint") and not args.base:
         cfg = TeamConfig.load(args.team)
         team_json = best.get("team") or {}
-        cfg = replace(cfg, **{k: v for k, v in team_json.items() if k in ("temperature", "debate_rounds",
+        cfg = replace(cfg, **{k: v for k, v in team_json.items() if k in ("base_model", "temperature", "debate_rounds",
                                                                              "debate_min_disagreement", "use_findings")})
         if "rule" in team_json:
             cfg.rule = WeightRule(**team_json["rule"])

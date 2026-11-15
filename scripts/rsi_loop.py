@@ -36,6 +36,7 @@ def main() -> None:
     parser.add_argument("--steps", type=int)
     parser.add_argument("--population", type=int)
     parser.add_argument("--batch-size", type=int)
+    parser.add_argument("--model", help="Tinker base model, e.g. deepseek-ai/DeepSeek-V4.1-Flash:peft:262144")
     args = parser.parse_args()
 
     raw = yaml.safe_load(Path(args.config).read_text())
@@ -55,6 +56,8 @@ def main() -> None:
         loop.population = args.population
     if args.batch_size:
         rl.batch_size = args.batch_size
+    if args.model:
+        rl.base_model = args.model
     team = TeamConfig.load(args.team)
     team.base_model = rl.base_model
     out = Path(args.out) if args.out else ROOT / "outputs" / "rsi" / f"{datetime.now():%Y%m%d-%H%M%S}"

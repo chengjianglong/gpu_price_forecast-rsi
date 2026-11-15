@@ -17,7 +17,9 @@ Two questions, one scored and one argued:
    in late 2028 and 2029? See section 6.
 
 ## 2. Method
-A team of LLM agents on Tinker (`Qwen/Qwen3.5-9B`, LoRA) that improves itself at four levels:
+A team of LLM agents on Tinker that improves itself at four levels. Two base models,
+`Qwen/Qwen3.5-9B` and `DeepSeek-V4.1-Flash`, run identical loops. The better one is chosen on
+validation only, by a rule fixed in advance (`scripts/compare_models.py`).
 
 | Level | What changes | How it is kept or rejected |
 |---|---|---|
